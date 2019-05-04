@@ -1,16 +1,16 @@
-(* 
+(*
                          CS 51 Final Project
                         MiniML -- Expressions
 *)
 
 (*......................................................................
-  Abstract syntax of MiniML expressions 
+  Abstract syntax of MiniML expressions
  *)
 
 type unop =
   | Negate
 ;;
-    
+
 type binop =
   | Plus
   | Minus
@@ -20,7 +20,7 @@ type binop =
 ;;
 
 type varid = string ;;
-  
+
 type expr =
   | Var of varid                         (* variables *)
   | Num of int                           (* integers *)
@@ -35,7 +35,7 @@ type expr =
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
 ;;
-  
+
 (*......................................................................
   Manipulation of variable names (varids)
  *)
@@ -59,13 +59,13 @@ let same_vars : varidset -> varidset -> bool =
    testing purposes) *)
 let vars_of_list : string list -> varidset =
   SS.of_list ;;
-  
+
 (* free_vars : expr -> varidset
    Return a set of the variable names that are free in expression
    exp *)
 let free_vars (exp : expr) : varidset =
   failwith "free_vars not implemented" ;;
-  
+
 (* new_varname : unit -> varid
    Return a fresh variable, constructed with a running counter a la
    gensym. Assumes no variable names use the prefix "var". (Otherwise,
@@ -74,7 +74,7 @@ let new_varname () : varid =
   failwith "new_varname not implemented" ;;
 
 (*......................................................................
-  Substitution 
+  Substitution
 
   Substitution of expressions for free occurrences of variables is the
   cornerstone of the substitution model for functional programming
@@ -89,14 +89,65 @@ let subst (var_name : varid) (repl : expr) (exp : expr) : expr =
 (*......................................................................
   String representations of expressions
  *)
-   
-    
+
 (* exp_to_concrete_string : expr -> string
    Returns a concrete syntax string representation of the expr *)
-let exp_to_concrete_string (exp : expr) : string =
-  failwith "exp_to_concrete_string not implemented" ;;
+let rec exp_to_concrete_string (exp : expr) : string =
+  match exp with
+  | Var v -> v
+  | Num i -> string_of_int i
+  | Bool b -> string_of_bool b
+  | Unop (_unop, ex) -> "~-(" ^ exp_to_concrete_string ex ^ ")"
+  | Binop (bin, ex1, ex2) ->
+    (match bin with
+    | Plus -> exp_to_concrete_string ex1 ^ " + " ^ exp_to_concrete_string ex2
+    | Minus -> exp_to_concrete_string ex1 ^ " - " ^ exp_to_concrete_string ex2
+    | Times -> exp_to_concrete_string ex1 ^ " * " ^ exp_to_concrete_string ex2
+    | Equals -> exp_to_concrete_string ex1 ^ " = " ^ exp_to_concrete_string ex2
+    | LessThan -> exp_to_concrete_string ex1 ^ " < " ^ exp_to_concrete_string ex2)
+  | Conditional (ex1, ex2, ex3) ->
+    "if " ^ exp_to_concrete_string ex1 ^ " then " ^ exp_to_concrete_string ex2 ^
+    " else " ^ exp_to_concrete_string ex3
+  | Fun (v, ex) -> "fun " ^ v ^ " -> " ^ exp_to_concrete_string ex
+  | Let (v, ex1, ex2) -> "let " ^ v ^ " = " ^ exp_to_concrete_string ex1 ^
+                         " in " ^ exp_to_concrete_string ex2
+  | Letrec (v, ex1, ex2) -> "let rec " ^ v ^ " = " ^ exp_to_concrete_string ex1 ^
+                            " in " ^ exp_to_concrete_string ex2
+  | Raise -> "Exception raised"
+  | Unassigned -> "Unassigned"
+  | App (f, a) -> exp_to_concrete_string f ^ " " ^ exp_to_concrete_string a ;;
 
 (* exp_to_abstract_string : expr -> string
    Returns a string representation of the abstract syntax of the expr *)
-let exp_to_abstract_string (exp : expr) : string =
-  failwith "exp_to_abstract_string not implemented" ;;
+let rec exp_to_abstract_string (exp : expr) : string =
+  match exp with
+  | Var v -> "Var(" ^ v ^ ")"
+  | Num i -> "Num(" ^ string_of_int i ^ ")"
+  | Bool b -> "Bool(" ^ string_of_bool b ^ ")"
+  | Unop (_unop, ex) -> "Unop(" ^ exp_to_abstract_string ex ^ ")"
+  | Binop (bin, ex1, ex2) ->
+    (match bin with
+     | Plus -> "Binop(Plus, " ^ exp_to_abstract_string ex1 ^ ", " ^
+               exp_to_abstract_string ex2 ^ ")"
+     | Minus -> "Binop(Minus, " ^ exp_to_abstract_string ex1 ^ ", " ^
+                exp_to_abstract_string ex2 ^ ")"
+     | Times -> "Binop(Times, " ^ exp_to_abstract_string ex1 ^ ", " ^
+                exp_to_abstract_string ex2 ^ ")"
+     | Equals -> "Binop(Equals, " ^ exp_to_abstract_string ex1 ^ ", " ^
+                 exp_to_abstract_string ex2 ^ ")"
+     | LessThan -> "Binop(LessThan, " ^ exp_to_abstract_string ex1 ^ ", " ^
+                   exp_to_abstract_string ex2 ^ ")")
+  | Conditional (ex1, ex2, ex3) ->
+    "Conditional(" ^ exp_to_abstract_string ex1 ^ ", " ^
+    exp_to_abstract_string ex2 ^ ", " ^ exp_to_abstract_string ex3 ^ ")"
+  | Fun (v, ex) -> "Fun(" ^ v ^ ", " ^ exp_to_abstract_string ex ^ ")"
+  | Let (v, ex1, ex2) ->
+    "Let(" ^ v ^ ", " ^ exp_to_abstract_string ex1 ^ ", " ^
+    exp_to_abstract_string ex2 ^ ")"
+  | Letrec (v, ex1, ex2) ->
+    "Letrec(" ^ v ^ ", " ^ exp_to_abstract_string ex1 ^ ", " ^
+    exp_to_abstract_string ex2 ^ ")"
+  | Raise -> "Raise"
+  | Unassigned -> "Unassigned"
+  | App (f, a) -> "App(" ^ exp_to_abstract_string f ^ ", " ^
+                  exp_to_abstract_string a ^ ")"
