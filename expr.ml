@@ -103,6 +103,7 @@ let new_varname : unit -> varid =
 (* subst : varid -> expr -> expr -> expr
    Substitute repl for free occurrences of var_name in exp *)
 let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
+  (* replace varids? *)
   match exp with
   | Var v -> if v = var_name then repl else exp
   | Unop (u, ex) -> Unop(u, subst var_name repl ex)
@@ -124,12 +125,12 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
           subst var_name repl (subst v (Var fresh) ex2))
     else Let(v, subst var_name repl ex1, subst var_name repl ex2)
   | Letrec (v, ex1, ex2) ->
-    if v = var_name then exp
+    if v = var_name then Letrec(v, subst var_name repl ex1, ex2)
     else if SS.mem v (free_vars repl) then
       let fresh = new_varname () in
-      Let(fresh, subst var_name repl ex1,
+      Letrec(fresh, subst var_name repl ex1,
           subst var_name repl (subst v (Var fresh) ex2))
-    else Let(v, subst var_name repl ex1, subst var_name repl ex2)
+    else Letrec(v, subst var_name repl ex1, subst var_name repl ex2)
   | App (ex1, ex2) -> App(subst var_name repl ex1, subst var_name repl ex2)
   | Raise
   | Unassigned
