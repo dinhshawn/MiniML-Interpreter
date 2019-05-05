@@ -105,7 +105,11 @@ let rec eval_s (exp : expr) (_env : Env.env) : Env.value =
     | Var v -> raise (EvalError ("unbound value " ^ v))
     | Num _i -> sub_exp
     | Bool _b -> sub_exp
-    | Unop (u, ex) -> Unop(u, eval_exp ex)
+    | Unop (u, ex) ->
+      (match eval_exp ex with
+       | Num i -> Num(~-i)
+       | Bool b -> Bool(not b)
+       | _ -> raise (EvalError "type error"))
     | Binop (b, ex1, ex2) ->
       (match (eval_exp ex1), (eval_exp ex2) with
        | Num i1, Num i2 ->
