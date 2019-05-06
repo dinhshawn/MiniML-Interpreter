@@ -140,7 +140,7 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
       (match eval_exp b with
        | Bool tf -> if tf then eval_exp ex2 else eval_exp ex3
        | _ -> raise (EvalError "type error"))
-    | Fun (v, ex) -> sub_exp
+    | Fun _ -> sub_exp
     | Let (v, ex1, ex2) ->
       eval_exp (subst v (eval_exp ex1) ex2)
     | Letrec (v, ex1, ex2) ->
@@ -163,7 +163,7 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
   let rec d_eval_exp (sub_exp : expr) (sub_env : Env.env) : expr =
     match sub_exp, sub_env with
     | Var v, e ->
-      (match Env.lookup sub_env v with
+      (match Env.lookup e v with
        | Val ex -> ex
        | _ -> raise (EvalError "type error"))
     | Num _i, _e -> sub_exp
@@ -192,7 +192,7 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
       (match d_eval_exp b e with
        | Bool tf -> if tf then d_eval_exp ex2 e else d_eval_exp ex3 e
        | _ -> raise (EvalError "type error"))
-    | Fun (v, ex), e -> sub_exp
+    | Fun _, _e -> sub_exp
     | App (ex1, ex2), e ->
       (match d_eval_exp ex1 e, d_eval_exp ex2 e with
        | Fun (v, f_ex), ex2_v2 ->
@@ -205,7 +205,7 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
         d_eval_exp ex1 (Env.extend e v (ref (Env.Val Unassigned))) in
       d_eval_exp ex2 (Env.extend e v (ref (Env.Val let_def)))
     | Raise, _e -> raise (EvalError "Error raised")
-    | Unassigned, e -> raise (EvalError "Unassigned evaluated")
+    | Unassigned, _e -> raise (EvalError "Unassigned evaluated")
   in
   Env.Val (d_eval_exp exp env) ;;
 
