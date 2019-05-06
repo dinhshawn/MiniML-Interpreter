@@ -49,7 +49,10 @@ module Env : Env_type =
 
     (* Looks up the value of a variable in the environment *)
     let lookup (env : env) (varname : varid) : value =
-      !(snd (List.find (fun x -> (fst x) = varname) env)) ;;
+      try
+        !(snd (List.find (fun x -> (fst x) = varname) env))
+      with
+      | Not_found -> raise (EvalError "variable has no value") ;;
 
     (* Returns a new environment just like env except that it maps the
        variable varid to loc *)
@@ -70,9 +73,9 @@ module Env : Env_type =
     (* Returns a printable string representation of an environment *)
     and env_to_string (env : env) : string =
       "{" ^
-      List.fold_left (fun acc (vari, va) -> vari ^ "⊢" ^ (value_to_string !va)
-                                            ^ ", ") "" env ^
-      "}" ;;
+      List.fold_left (fun acc (vari, va) -> acc ^ vari ^ "⊢" ^
+                                            (value_to_string !va) ^ ", ") "" env
+      ^ "}" ;;
   end
 ;;
 
@@ -107,13 +110,13 @@ let eval_t (exp : expr) (_env : Env.env) : Env.value =
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
 
-let rec eval_s (exp : expr) (_env : Env.env) : Env.value =
+let eval_s (exp : expr) (_env : Env.env) : Env.value =
   let rec eval_exp (sub_exp : expr) : expr =
     match sub_exp with
     | Var v -> raise (EvalError ("unbound value " ^ v))
     | Num _i -> sub_exp
     | Bool _b -> sub_exp
-    | Unop (u, ex) ->
+    | Unop (_u, ex) ->
       (match eval_exp ex with
        | Num i -> Num(~-i)
        | Bool b -> Bool(not b)
@@ -156,8 +159,55 @@ let rec eval_s (exp : expr) (_env : Env.env) : Env.value =
 (* The DYNAMICALLY-SCOPED ENVIRONMENT MODEL evaluator -- to be
    completed *)
 
-let eval_d (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_d not implemented" ;;
+let eval_d (exp : expr) (env : Env.env) : Env.value =
+  let rec d_eval_exp (sub_exp : expr) (sub_env : Env.env) : expr =
+    match sub_exp, sub_env with
+    | Var v, e ->
+      (match Env.lookup sub_env v with
+       | Val ex -> ex
+       | _ -> raise (EvalError "type error"))
+    | Num _i, _e -> sub_exp
+    | Bool _b, _e -> sub_exp
+    | Unop (_u, ex), e ->
+      (match d_eval_exp ex e with
+       | Num i -> Num(~-i)
+       | Bool b -> Bool(not b)
+       | _ -> raise (EvalError "type error"))
+    | Binop (b, ex1, ex2), e ->
+      (match (d_eval_exp ex1 e), (d_eval_exp ex2 e) with
+       | Num i1, Num i2 ->
+         (match b with
+         | Plus -> Num(i1 + i2)
+         | Minus -> Num(i1 - i2)
+         | Times -> Num(i1 * i2)
+         | Equals -> Bool(i1 = i2)
+         | LessThan -> Bool(i1 < i2))
+       | Bool bo1, Bool bo2 ->
+         (match b with
+          | Equals -> Bool(bo1 = bo2)
+          | LessThan -> Bool(bo1 < bo2)
+          | _ -> raise (EvalError "type error"))
+       | _, _ -> raise (EvalError "type error"))
+    | Conditional (b, ex2, ex3), e ->
+      (match d_eval_exp b e with
+       | Bool tf -> if tf then d_eval_exp ex2 e else d_eval_exp ex3 e
+       | _ -> raise (EvalError "type error"))
+    | Fun (v, ex), e -> sub_exp
+    | App (ex1, ex2), e ->
+      (match d_eval_exp ex1 e, d_eval_exp ex2 e with
+       | Fun (v, f_ex), ex2_v2 ->
+         d_eval_exp f_ex (Env.extend e v (ref (Env.Val (ex2_v2))))
+       | _ -> raise (EvalError "type error"))
+    | Let (v, ex1, ex2), e ->
+      d_eval_exp ex2 (Env.extend e v (ref (Env.Val (d_eval_exp ex1 e))))
+    | Letrec (v, ex1, ex2), e ->
+      let let_def =
+        d_eval_exp ex1 (Env.extend e v (ref (Env.Val Unassigned))) in
+      d_eval_exp ex2 (Env.extend e v (ref (Env.Val let_def)))
+    | Raise, _e -> raise (EvalError "Error raised")
+    | Unassigned, e -> raise (EvalError "Unassigned evaluated")
+  in
+  Env.Val (d_eval_exp exp env) ;;
 
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
@@ -181,4 +231,4 @@ let eval_e _ =
    above, not the evaluate function, so it doesn't matter how it's set
    when you submit your solution.) *)
 
-let evaluate = eval_s ;;
+let evaluate = eval_d ;;
