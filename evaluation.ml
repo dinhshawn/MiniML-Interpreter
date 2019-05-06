@@ -45,26 +45,34 @@ module Env : Env_type =
     (* Creates a closure from an expression and the environment it's
        defined in *)
     let close (exp : expr) (env : env) : value =
-      failwith "close not implemented" ;;
+      Closure (exp, env) ;;
 
     (* Looks up the value of a variable in the environment *)
     let lookup (env : env) (varname : varid) : value =
-      failwith "lookup not implemented" ;;
+      !(snd (List.find (fun x -> (fst x) = varname) env)) ;;
 
     (* Returns a new environment just like env except that it maps the
        variable varid to loc *)
     let extend (env : env) (varname : varid) (loc : value ref) : env =
-      failwith "extend not implemented" ;;
+      (varname, loc) :: env ;;
 
     (* Returns a printable string representation of a value; the flag
        printenvp determines whether to include the environment in the
        string representation when called on a closure *)
-    let value_to_string ?(printenvp : bool = true) (v : value) : string =
-      failwith "value_to_string not implemented" ;;
+    let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
+      match v with
+      | Val exp -> exp_to_abstract_string exp
+      | Closure (exp, env) ->
+        if printenvp then exp_to_abstract_string exp ^ ", [" ^
+                          env_to_string env ^ "]"
+        else exp_to_abstract_string exp
 
     (* Returns a printable string representation of an environment *)
-    let env_to_string (env : env) : string =
-      failwith "env_to_string not implemented" ;;
+    and env_to_string (env : env) : string =
+      "{" ^
+      List.fold_left (fun acc (vari, va) -> vari ^ "⊢" ^ (value_to_string !va)
+                                            ^ ", ") "" env ^
+      "}" ;;
   end
 ;;
 
