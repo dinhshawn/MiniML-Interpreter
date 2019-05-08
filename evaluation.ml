@@ -240,6 +240,7 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
    completed as (part of) your extension *)
 
 let eval_l (_exp : expr) (_env : Env.env) : Env.value =
+  failwith "eval_l not implemented";;
   (* let get_val (vexp : Env.value) : expr =
     match vexp with
     | Val ex -> ex
@@ -303,7 +304,6 @@ let eval_l (_exp : expr) (_env : Env.env) : Env.value =
     eval_l ex2 (Env.extend e v (ref let_def))
   | Raise, _e -> raise (EvalError "Error raised")
   | Unassigned, _e -> raise (EvalError "Unassigned evaluated") *)
-  failwith "eval_l not implemented";;
 
 (* The EXTENDED evaluator -- if you want, you can provide your
    extension as a separate evaluator, or if it is type- and

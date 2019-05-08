@@ -183,13 +183,16 @@ let rec exp_to_concrete_string (exp : expr) : string =
        | LessThan -> " < ")
       ^ exp_to_concrete_string ex2
   | Conditional (ex1, ex2, ex3) ->
-      "if " ^ exp_to_concrete_string ex1 ^ " then " ^ exp_to_concrete_string ex2 ^
+      "if " ^ exp_to_concrete_string ex1 ^
+      " then " ^ exp_to_concrete_string ex2 ^
       " else " ^ exp_to_concrete_string ex3
   | Fun (v, ex) -> "fun " ^ v ^ " -> " ^ exp_to_concrete_string ex
-  | Let (v, ex1, ex2) -> "let " ^ v ^ " = " ^ exp_to_concrete_string ex1 ^
-                         " in " ^ exp_to_concrete_string ex2
-  | Letrec (v, ex1, ex2) -> "let rec " ^ v ^ " = " ^ exp_to_concrete_string ex1 ^
-                            " in " ^ exp_to_concrete_string ex2
+  | Let (v, ex1, ex2) ->
+      "let " ^ v ^ " = " ^ exp_to_concrete_string ex1 ^
+      " in " ^ exp_to_concrete_string ex2
+  | Letrec (v, ex1, ex2) ->
+      "let rec " ^ v ^ " = " ^ exp_to_concrete_string ex1 ^
+      " in " ^ exp_to_concrete_string ex2
   | Raise -> "Exception raised"
   | Unassigned -> "Unassigned"
   | App (f, a) -> exp_to_concrete_string f ^ " " ^ exp_to_concrete_string a ;;
@@ -232,5 +235,5 @@ let rec exp_to_abstract_string (exp : expr) : string =
       exp_to_abstract_string ex2 ^ ")"
   | Raise -> "Raise"
   | Unassigned -> "Unassigned"
-  | App (f, a) -> "App(" ^ exp_to_abstract_string f ^ ", " ^
-                  exp_to_abstract_string a ^ ")"
+  | App (f, a) ->
+      "App(" ^ exp_to_abstract_string f ^ ", " ^ exp_to_abstract_string a ^ ")"
