@@ -64,11 +64,11 @@ module Env : Env_type =
        string representation when called on a closure *)
     let rec value_to_string ?(printenvp : bool = true) (v : value) : string =
       match v with
-      | Val exp -> exp_to_abstract_string exp
+      | Val exp -> exp_to_concrete_string exp
       | Closure (exp, env) ->
-        if printenvp then exp_to_abstract_string exp ^ ", [" ^
-                          env_to_string env ^ "]"
-        else exp_to_abstract_string exp
+          if printenvp then
+            exp_to_concrete_string exp ^ ", [" ^ env_to_string env ^ "]"
+          else exp_to_concrete_string exp
 
     (* Returns a printable string representation of an environment *)
     and env_to_string (env : env) : string =
@@ -114,26 +114,52 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
   let rec eval_exp (sub_exp : expr) : expr =
     match sub_exp with
     | Var v -> raise (EvalError ("unbound value " ^ v))
-    | Num _i -> sub_exp
-    | Bool _b -> sub_exp
+    | Num _ -> sub_exp
+    | Float _ -> sub_exp
+    | Char _ -> sub_exp
+    | Str _ -> sub_exp
+    | Unit -> sub_exp
+    | Bool _ -> sub_exp
     | Unop (_u, ex) ->
-      (match eval_exp ex with
-       | Num i -> Num(~-i)
-       | Bool b -> Bool(not b)
-       | _ -> raise (EvalError "type error"))
+        (match eval_exp ex with
+         | Num i -> Num(~-i)
+         | Float f -> Float(~-.f)
+         | Bool b -> Bool(not b)
+         | _ -> raise (EvalError "type error"))
     | Binop (b, ex1, ex2) ->
-      (match (eval_exp ex1), (eval_exp ex2) with
-       | Num i1, Num i2 ->
+        (match (eval_exp ex1), (eval_exp ex2) with
+         | Num i1, Num i2 ->
+           (match b with
+           | Plus -> Num(i1 + i2)
+           | Minus -> Num(i1 - i2)
+           | Times -> Num(i1 * i2)
+           | Equals -> Bool(i1 = i2)
+           | LessThan -> Bool(i1 < i2)
+           | _ -> raise (EvalError "type error"))
+       | Float f1, Float f2 ->
          (match b with
-         | Plus -> Num(i1 + i2)
-         | Minus -> Num(i1 - i2)
-         | Times -> Num(i1 * i2)
-         | Equals -> Bool(i1 = i2)
-         | LessThan -> Bool(i1 < i2))
+          | Fplus -> Float(f1 +. f2)
+          | Fminus -> Float(f1 -. f2)
+          | Ftimes -> Float(f1 *. f2)
+          | Equals -> Bool(f1 = f2)
+          | LessThan -> Bool(f1 < f2)
+          | _ -> raise (EvalError "type error"))
        | Bool bo1, Bool bo2 ->
          (match b with
           | Equals -> Bool(bo1 = bo2)
           | LessThan -> Bool(bo1 < bo2)
+          | _ -> raise (EvalError "type error"))
+       | Str s1, Str s2 ->
+         (match b with
+          | Plus -> Str((String.sub s1 0 (String.length s1 - 1)) ^
+                        String.sub s2 1 (String.length s2 - 1))
+          | Equals -> Bool(s1 = s2)
+          | LessThan -> Bool(String.length s1 < String.length s2)
+          | _ -> raise (EvalError "type error"))
+       | Char c1, Char c2 ->
+         (match b with
+          | Equals -> Bool(c1 = c2)
+          | LessThan -> Bool(c1 < c2)
           | _ -> raise (EvalError "type error"))
        | _, _ -> raise (EvalError "type error"))
     | Conditional (b, ex2, ex3) ->
@@ -167,10 +193,15 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
        | Val ex -> ex
        | _ -> raise (EvalError "type error"))
     | Num _i, _e -> sub_exp
+    | Float _f, _e -> sub_exp
+    | Char _c, _e -> sub_exp
+    | Str _s, _e -> sub_exp
+    | Unit, _e -> sub_exp
     | Bool _b, _e -> sub_exp
     | Unop (_u, ex), e ->
       (match d_eval_exp ex e with
        | Num i -> Num(~-i)
+       | Float f -> Float(~-.f)
        | Bool b -> Bool(not b)
        | _ -> raise (EvalError "type error"))
     | Binop (b, ex1, ex2), e ->
@@ -181,11 +212,32 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
          | Minus -> Num(i1 - i2)
          | Times -> Num(i1 * i2)
          | Equals -> Bool(i1 = i2)
-         | LessThan -> Bool(i1 < i2))
+         | LessThan -> Bool(i1 < i2)
+         | _ -> raise (EvalError "type error"))
+       | Float f1, Float f2 ->
+         (match b with
+          | Fplus -> Float(f1 +. f2)
+          | Fminus -> Float(f1 -. f2)
+          | Ftimes -> Float(f1 *. f2)
+          | Equals -> Bool(f1 = f2)
+          | LessThan -> Bool(f1 < f2)
+          | _ -> raise (EvalError "type error"))
        | Bool bo1, Bool bo2 ->
          (match b with
           | Equals -> Bool(bo1 = bo2)
           | LessThan -> Bool(bo1 < bo2)
+          | _ -> raise (EvalError "type error"))
+       | Str s1, Str s2 ->
+         (match b with
+          | Plus -> Str((String.sub s1 0 (String.length s1 - 1)) ^
+                        String.sub s2 1 (String.length s2 - 1))
+          | Equals -> Bool(s1 = s2)
+          | LessThan -> Bool(String.length s1 < String.length s2)
+          | _ -> raise (EvalError "type error"))
+       | Char c1, Char c2 ->
+         (match b with
+          | Equals -> Bool(c1 = c2)
+          | LessThan -> Bool(c1 < c2)
           | _ -> raise (EvalError "type error"))
        | _, _ -> raise (EvalError "type error"))
     | Conditional (b, ex2, ex3), e ->
@@ -212,8 +264,71 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
 
-let eval_l (_exp : expr) (_env : Env.env) : Env.value =
-  failwith "eval_l not implemented" ;;
+let rec eval_l (exp : expr) (env : Env.env) : Env.value =
+  (* let get_val (vexp : Env.value) : expr =
+    match vexp with
+    | Val ex -> ex
+    | Closure (c, en) -> c in
+  let get_close (cexp : Env.value) : (expr * Env.env) =
+    match cexp with
+    | Closure c -> c
+    | _ -> raise (EvalError "non-closure") in
+  match exp, env with
+  | Var v, e ->
+    (match Env.lookup e v with
+     | Val ex -> Env.Val ex
+     | Closure (Fun(x,y), env) -> eval_l (Fun(x,y)) env
+     | _ -> raise (EvalError "bad"))
+  | Num _i, _e -> Env.Val exp
+  | Bool _b, _e -> Env.Val exp
+  | Unop (_u, ex), e ->
+    (match get_val (eval_l ex e) with
+     | Num i -> Env.Val (Num(~-i))
+     | Bool b -> Env.Val (Bool(not b))
+     | _ -> raise (EvalError "type error"))
+  | Binop (b, ex1, ex2), e ->
+    (match get_val (eval_l ex1 e), get_val (eval_l ex2 e) with
+     | Num i1, Num i2 ->
+       (match b with
+       | Plus -> Env.Val (Num(i1 + i2))
+       | Minus -> Env.Val (Num(i1 - i2))
+       | Times -> Env.Val (Num(i1 * i2))
+       | Equals -> Env.Val (Bool(i1 = i2))
+       | LessThan -> Env.Val (Bool(i1 < i2)))
+     | Bool bo1, Bool bo2 ->
+       (match b with
+        | Equals -> Env.Val (Bool(bo1 = bo2))
+        | LessThan -> Env.Val (Bool(bo1 < bo2))
+        | _ -> raise (EvalError "type error"))
+     | _, _ -> raise (EvalError "type error"))
+  | Conditional (b, ex2, ex3), e ->
+    (match get_val (eval_l b e) with
+     | Bool tf -> if tf then eval_l ex2 e else eval_l ex3 e
+     | _ -> raise (EvalError "type error"))
+  | Fun _, e -> Env.close exp e
+  | App (ex1, ex2), e ->
+    (match eval_l ex1 e with
+     | Closure (f_ex, f_env) ->
+       eval_d (App(ex1, ex2)) f_env
+     | _ -> raise (EvalError "bad"))
+    (*(match get_close (eval_l ex1 e), get_val (eval_l ex2 e) with
+     | (Fun (v, f), f_env), ex2_v2 ->
+       (match fst (get_close (eval_l ex1 f_env)) with
+        | Fun (_, rf) ->
+          eval_l rf (Env.extend e v (ref (Env.Val (ex2_v2))))
+        | _ -> raise (EvalError "type error"))
+      | _ -> raise (EvalError "type error"))*)
+  | Let (v, ex1, ex2), e ->
+    (match ex1 with
+    | Fun _ -> eval_l ex2 (Env.extend e v (ref (eval_d ex1 (snd (get_close (eval_l ex1 e))))))
+    | _ -> eval_l ex2 (Env.extend e v (ref (eval_l ex1 e))))
+  | Letrec (v, ex1, ex2), e ->
+    let let_def =
+      eval_l ex1 (Env.extend e v (ref (Env.Val Unassigned))) in
+    eval_l ex2 (Env.extend e v (ref let_def))
+  | Raise, _e -> raise (EvalError "Error raised")
+  | Unassigned, _e -> raise (EvalError "Unassigned evaluated") *)
+  failwith "eval_l not implemented";;
 
 (* The EXTENDED evaluator -- if you want, you can provide your
    extension as a separate evaluator, or if it is type- and
@@ -231,4 +346,4 @@ let eval_e _ =
    above, not the evaluate function, so it doesn't matter how it's set
    when you submit your solution.) *)
 
-let evaluate = eval_d ;;
+let evaluate = eval_s ;;

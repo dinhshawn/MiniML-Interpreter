@@ -1,4 +1,4 @@
-(* 
+(*
                          CS 51 Final Project
                       MiniML -- Lexical Analyzer
 
@@ -13,7 +13,7 @@
     List.iter (fun (key, data) -> Hashtbl.add tbl key data) init;
     tbl
 
-  let keyword_table = 
+  let keyword_table =
     create_hashtable 8 [
                        ("if", IF);
                        ("in", IN);
@@ -26,10 +26,11 @@
                        ("false", FALSE);
                        ("lambda", FUNCTION);
                        ("fun", FUNCTION);
-                       ("function", FUNCTION)
+                       ("function", FUNCTION);
+                       ("()", UNIT)
                      ]
-                     
-  let sym_table = 
+
+  let sym_table =
     create_hashtable 8 [
                        ("=", EQUALS);
                        ("<", LESSTHAN);
@@ -40,13 +41,20 @@
                        ("+", PLUS);
                        ("-", MINUS);
                        ("*", TIMES);
+                       ("+.", FPLUS);
+                       ("-.", FMINUS);
+                       ("*.", FTIMES);
                        ("(", OPEN);
                        (")", CLOSE)
                      ]
+
 }
 
 let digit = ['0'-'9']
-let id = ['a'-'z'] ['a'-'z' '0'-'9']*
+let dec = ['0'-'9']+ "." ['0'-'9']*
+let id = "()" | ['a'-'z'] ['a'-'z' '0'-'9']*
+let str = "\""+ [' '-'!' '#'-'~']* + "\""
+let chr = "'"+ [' '-'!' '#'-'~'] + "'"
 let sym = ['(' ')'] | (['+' '-' '*' '.' '=' '~' ';' '<' '>']+)
 
 rule token = parse
@@ -54,10 +62,22 @@ rule token = parse
         { let num = int_of_string inum in
           INT num
         }
+  | dec+ as fdec
+        { let decimal = float_of_string fdec in
+          FLOAT decimal
+        }
+  | str+ as str
+        { let s = str in
+          STR s
+        }
+  | chr+ as ch
+        { let c = String.get ch 1 in
+          CHAR c
+        }
   | id as word
         { try
             let token = Hashtbl.find keyword_table word in
-            token 
+            token
           with Not_found ->
             ID word
         }

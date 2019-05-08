@@ -1,4 +1,4 @@
-(* 
+(*
                          CS 51 Final Project
                         MiniML -- Expressions
 *)
@@ -17,15 +17,22 @@ type binop =
   | Times
   | Equals
   | LessThan
+  | Fplus
+  | Fminus
+  | Ftimes
 ;;
 
 (* Variables *)
 type varid = string ;;
-  
+
 (* Expressions *)
 type expr =
   | Var of varid                         (* variables *)
   | Num of int                           (* integers *)
+  | Float of float                       (* decimals *)
+  | Char of char                         (* characters *)
+  | Str of string                        (* strings *)
+  | Unit                                 (* unit *)
   | Bool of bool                         (* booleans *)
   | Unop of unop * expr                  (* unary operators *)
   | Binop of binop * expr * expr         (* binary operators *)
@@ -37,7 +44,7 @@ type expr =
   | Unassigned                           (* (temporarily) unassigned *)
   | App of expr * expr                   (* function applications *)
 ;;
-  
+
 type varidset ;;
 
 (* same_vars varids -- Test to see if two sets have the same elements
@@ -66,4 +73,3 @@ val exp_to_concrete_string : expr -> string
 (* exp_to_abstract_string e -- Return a string representation of the
    abstract syntax of the expression e *)
 val exp_to_abstract_string : expr -> string
-
