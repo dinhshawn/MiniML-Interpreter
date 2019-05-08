@@ -117,7 +117,6 @@ let new_varname : unit -> varid =
 (* subst : varid -> expr -> expr -> expr
    Substitute repl for free occurrences of var_name in exp *)
 let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
-  (* replace varids? *)
   match exp with
   | Var v -> if v = var_name then repl else exp
   | Unop (u, ex) -> Unop(u, subst var_name repl ex)
@@ -160,7 +159,8 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
 
 (*......................................................................
   String representations of expressions
- *)
+*)
+
 (* exp_to_concrete_string : expr -> string
    Returns a concrete syntax string representation of the expr *)
 let rec exp_to_concrete_string (exp : expr) : string =
@@ -172,7 +172,10 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Str s -> "\"" ^ s ^ "\""
   | Bool b -> string_of_bool b
   | Unit -> "()"
-  | Unop (_unop, ex) -> "Negate(" ^ exp_to_concrete_string ex ^ ")"
+  | Unop (u, ex) ->
+      (match u with
+       | Negate -> "~-(" ^ exp_to_concrete_string ex ^ ")"
+       | RoundtoInt -> "~=(" ^ exp_to_concrete_string ex ^ ")")
   | Binop (bin, ex1, ex2) ->
       exp_to_concrete_string ex1 ^
       (match bin with
@@ -216,8 +219,8 @@ let rec exp_to_abstract_string (exp : expr) : string =
   | Unop (u, ex) ->
       "Unop(" ^
       (match u with
-        | Negate -> "Negate, "
-        | RoundtoInt -> "RoundtoInt, ")
+       | Negate -> "Negate, "
+       | RoundtoInt -> "RoundtoInt, ")
       ^ exp_to_abstract_string ex ^ ")"
   | Binop (bin, ex1, ex2) ->
       "Binop(" ^

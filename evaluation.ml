@@ -72,10 +72,13 @@ module Env : Env_type =
 
     (* Returns a printable string representation of an environment *)
     and env_to_string (env : env) : string =
-      "{" ^
-      List.fold_left (fun acc (vari, va) -> acc ^ vari ^ "⊢" ^
-                                            (value_to_string !va) ^ ", ") "" env
-      ^ "}" ;;
+      let rec parse_env (env : env) =
+        match env with
+        | [] -> ""
+        | (vari, va) :: [] -> vari ^ "⊢" ^ (value_to_string !va)
+        | (vari, va) :: tl ->
+          vari ^ "⊢" ^ value_to_string !va ^ ", " ^ parse_env tl in
+      "{" ^ parse_env env ^ "}" ;;
   end
 ;;
 
@@ -110,6 +113,8 @@ let eval_t (exp : expr) (_env : Env.env) : Env.value =
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
 
+(* handles expressions that are evaluated to the same values in substitution
+   and dynamical semantics *)
 let common_abstr (exp : expr) =
   match exp with
   | Num _
@@ -122,6 +127,8 @@ let common_abstr (exp : expr) =
   | Unassigned -> raise (EvalError "Unassigned evaluated")
   | _ -> raise (EvalError "wrong abstraction") ;;
 
+(* abstracts evaluation of unop expressions that are evaluated to the same
+   values in substitution and dynamical semantics *)
 let unop_abstr (u : unop) (exp : expr) =
   match u with
   | Negate ->
@@ -138,6 +145,8 @@ let unop_abstr (u : unop) (exp : expr) =
        | Float f -> Num(rounder (modf f))
        | _ -> raise (EvalError "cannot perform this operator on this type")) ;;
 
+(* abstracts binop evaluation shared by both substitution and dynamical
+   evaluation *)
 let binop_abstr (b : binop) (exp1 : expr) (exp2 : expr) =
   match exp1, exp2 with
   | Num i1, Num i2 ->
