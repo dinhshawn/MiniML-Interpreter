@@ -54,7 +54,7 @@ let digit = ['0'-'9']
 let dec = ['0'-'9']+ "." ['0'-'9']*
 let id = "()" | ['a'-'z'] ['a'-'z' '0'-'9']*
 let str = "\""+ [' '-'!' '#'-'~']* + "\""
-let chr = "'"+ [' '-'!' '#'-'~'] + "'"
+let chr = "'"+ [' '-'&' '('-'~']? + "'"
 let sym = ['(' ')'] | (['+' '-' '*' '.' '=' '~' ';' '<' '>']+)
 
 rule token = parse
@@ -67,7 +67,7 @@ rule token = parse
           FLOAT decimal
         }
   | str+ as str
-        { let s = str in
+        { let s = String.sub str 1 (String.length str - 2) in
           STR s
         }
   | chr+ as ch

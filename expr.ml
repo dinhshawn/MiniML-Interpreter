@@ -165,7 +165,7 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Var v -> v
   | Num i -> string_of_int i
   | Float f -> string_of_float f
-  | Str s -> s
+  | Str s -> "\"" ^ s ^ "\""
   | Char c -> "'" ^ Char.escaped c ^ "'"
   | Unit -> "()"
   | Bool b -> string_of_bool b

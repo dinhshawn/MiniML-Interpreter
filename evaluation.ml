@@ -132,38 +132,37 @@ let unop_abstr (exp : expr) =
 let binop_abstr (b : binop) (exp1 : expr) (exp2 : expr) =
   match exp1, exp2 with
   | Num i1, Num i2 ->
-    (match b with
-     | Plus -> Num(i1 + i2)
-     | Minus -> Num(i1 - i2)
-     | Times -> Num(i1 * i2)
-     | Equals -> Bool(i1 = i2)
-     | LessThan -> Bool(i1 < i2)
-     | _ -> raise (EvalError "type error"))
+      (match b with
+       | Plus -> Num(i1 + i2)
+       | Minus -> Num(i1 - i2)
+       | Times -> Num(i1 * i2)
+       | Equals -> Bool(i1 = i2)
+       | LessThan -> Bool(i1 < i2)
+       | _ -> raise (EvalError "type error"))
   | Float f1, Float f2 ->
-    (match b with
-     | Fplus -> Float(f1 +. f2)
-     | Fminus -> Float(f1 -. f2)
-     | Ftimes -> Float(f1 *. f2)
-     | Equals -> Bool(f1 = f2)
-     | LessThan -> Bool(f1 < f2)
-     | _ -> raise (EvalError "type error"))
+      (match b with
+       | Fplus -> Float(f1 +. f2)
+       | Fminus -> Float(f1 -. f2)
+       | Ftimes -> Float(f1 *. f2)
+       | Equals -> Bool(f1 = f2)
+       | LessThan -> Bool(f1 < f2)
+       | _ -> raise (EvalError "type error"))
   | Bool bo1, Bool bo2 ->
-    (match b with
-     | Equals -> Bool(bo1 = bo2)
-     | LessThan -> Bool(bo1 < bo2)
-     | _ -> raise (EvalError "type error"))
+      (match b with
+       | Equals -> Bool(bo1 = bo2)
+       | LessThan -> Bool(bo1 < bo2)
+       | _ -> raise (EvalError "type error"))
   | Str s1, Str s2 ->
-    (match b with
-     | Plus -> Str((String.sub s1 0 (String.length s1 - 1)) ^
-                   String.sub s2 1 (String.length s2 - 1))
-     | Equals -> Bool(s1 = s2)
-     | LessThan -> Bool(String.length s1 < String.length s2)
-     | _ -> raise (EvalError "type error"))
+      (match b with
+       | Plus -> Str(s1 ^ s2)
+       | Equals -> Bool(s1 = s2)
+       | LessThan -> Bool(String.length s1 < String.length s2)
+       | _ -> raise (EvalError "type error"))
   | Char c1, Char c2 ->
-    (match b with
-     | Equals -> Bool(c1 = c2)
-     | LessThan -> Bool(c1 < c2)
-     | _ -> raise (EvalError "type error"))
+      (match b with
+       | Equals -> Bool(c1 = c2)
+       | LessThan -> Bool(c1 < c2)
+       | _ -> raise (EvalError "type error"))
   | _, _ -> raise (EvalError "type error") ;;
 
 let eval_s (exp : expr) (_env : Env.env) : Env.value =
@@ -178,24 +177,21 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
     | Bool _
     | Raise
     | Unassigned -> common_abstr sub_exp
-    | Unop (_u, ex) ->
-        unop_abstr (eval_exp ex)
-    | Binop (b, ex1, ex2) ->
-        binop_abstr b (eval_exp ex1) (eval_exp ex2)
+    | Unop (_, ex) -> unop_abstr (eval_exp ex)
+    | Binop (b, ex1, ex2) -> binop_abstr b (eval_exp ex1) (eval_exp ex2)
     | Conditional (b, ex2, ex3) ->
-      (match eval_exp b with
-       | Bool tf -> if tf then eval_exp ex2 else eval_exp ex3
-       | _ -> raise (EvalError "type error"))
+        (match eval_exp b with
+         | Bool tf -> if tf then eval_exp ex2 else eval_exp ex3
+         | _ -> raise (EvalError "type error"))
     | Fun _ -> sub_exp
-    | Let (v, ex1, ex2) ->
-      eval_exp (subst v (eval_exp ex1) ex2)
+    | Let (v, ex1, ex2) -> eval_exp (subst v (eval_exp ex1) ex2)
     | Letrec (v, ex1, ex2) ->
-      let rec_exp = subst v (Letrec(v, ex1, Var v)) ex1 in
-      eval_exp(subst v rec_exp ex2)
+        let rec_exp = subst v (Letrec(v, ex1, Var v)) ex1 in
+        eval_exp(subst v rec_exp ex2)
     | App (ex1, ex2) ->
-      match eval_exp ex1 with
-      | Fun (v, f_ex) -> eval_exp (subst v (eval_exp ex2) f_ex)
-      | _ -> raise (EvalError
+        match eval_exp ex1 with
+        | Fun (v, f_ex) -> eval_exp (subst v (eval_exp ex2) f_ex)
+        | _ -> raise (EvalError
                       ("(" ^ (exp_to_concrete_string sub_exp) ^ ") bad redex"))
   in
   Env.Val (eval_exp (exp)) ;;
@@ -207,9 +203,9 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
   let rec d_eval_exp (sub_exp : expr) (sub_env : Env.env) : expr =
     match sub_exp, sub_env with
     | Var v, e ->
-      (match Env.lookup e v with
-       | Val ex -> ex
-       | _ -> raise (EvalError "type error"))
+        (match Env.lookup e v with
+         | Val ex -> ex
+         | _ -> raise (EvalError "type error"))
     | Num _, _
     | Float _, _
     | Char _, _
@@ -218,26 +214,25 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
     | Bool _, _
     | Raise, _
     | Unassigned, _ -> common_abstr sub_exp
-    | Unop (_u, ex), e ->
-        unop_abstr (d_eval_exp ex e)
+    | Unop (_, ex), e -> unop_abstr (d_eval_exp ex e)
     | Binop (b, ex1, ex2), e ->
-      binop_abstr b (d_eval_exp ex1 e) (d_eval_exp ex2 e)
+        binop_abstr b (d_eval_exp ex1 e) (d_eval_exp ex2 e)
     | Conditional (b, ex2, ex3), e ->
-      (match d_eval_exp b e with
-       | Bool tf -> if tf then d_eval_exp ex2 e else d_eval_exp ex3 e
-       | _ -> raise (EvalError "type error"))
+        (match d_eval_exp b e with
+         | Bool tf -> if tf then d_eval_exp ex2 e else d_eval_exp ex3 e
+         | _ -> raise (EvalError "type error"))
     | Fun _, _e -> sub_exp
     | App (ex1, ex2), e ->
-      (match d_eval_exp ex1 e, d_eval_exp ex2 e with
-       | Fun (v, f_ex), ex2_v2 ->
-         d_eval_exp f_ex (Env.extend e v (ref (Env.Val (ex2_v2))))
-       | _ -> raise (EvalError "type error"))
+        (match d_eval_exp ex1 e, d_eval_exp ex2 e with
+         | Fun (v, f_ex), ex2_v2 ->
+             d_eval_exp f_ex (Env.extend e v (ref (Env.Val (ex2_v2))))
+         | _ -> raise (EvalError "type error"))
     | Let (v, ex1, ex2), e ->
-      d_eval_exp ex2 (Env.extend e v (ref (Env.Val (d_eval_exp ex1 e))))
+        d_eval_exp ex2 (Env.extend e v (ref (Env.Val (d_eval_exp ex1 e))))
     | Letrec (v, ex1, ex2), e ->
-      let let_def =
-        d_eval_exp ex1 (Env.extend e v (ref (Env.Val Unassigned))) in
-      d_eval_exp ex2 (Env.extend e v (ref (Env.Val let_def)))
+        let let_def =
+          d_eval_exp ex1 (Env.extend e v (ref (Env.Val Unassigned))) in
+        d_eval_exp ex2 (Env.extend e v (ref (Env.Val let_def)))
   in
   Env.Val (d_eval_exp exp env) ;;
 
