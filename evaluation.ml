@@ -110,58 +110,78 @@ let eval_t (exp : expr) (_env : Env.env) : Env.value =
 
 (* The SUBSTITUTION MODEL evaluator -- to be completed *)
 
+let common_abstr (exp : expr) =
+  match exp with
+  | Num _
+  | Float _
+  | Char _
+  | Str _
+  | Unit
+  | Bool _ -> exp
+  | Raise -> raise (EvalError "Error raised")
+  | Unassigned -> raise (EvalError "Unassigned evaluated")
+  | _ -> raise (EvalError "wrong abstraction") ;;
+
+let unop_abstr (exp : expr) =
+  (match exp with
+   | Num i -> Num(~-i)
+   | Float f -> Float(~-.f)
+   | Bool b -> Bool(not b)
+   | _ -> raise (EvalError "type error")) ;;
+
+let binop_abstr (b : binop) (exp1 : expr) (exp2 : expr) =
+  match exp1, exp2 with
+  | Num i1, Num i2 ->
+    (match b with
+     | Plus -> Num(i1 + i2)
+     | Minus -> Num(i1 - i2)
+     | Times -> Num(i1 * i2)
+     | Equals -> Bool(i1 = i2)
+     | LessThan -> Bool(i1 < i2)
+     | _ -> raise (EvalError "type error"))
+  | Float f1, Float f2 ->
+    (match b with
+     | Fplus -> Float(f1 +. f2)
+     | Fminus -> Float(f1 -. f2)
+     | Ftimes -> Float(f1 *. f2)
+     | Equals -> Bool(f1 = f2)
+     | LessThan -> Bool(f1 < f2)
+     | _ -> raise (EvalError "type error"))
+  | Bool bo1, Bool bo2 ->
+    (match b with
+     | Equals -> Bool(bo1 = bo2)
+     | LessThan -> Bool(bo1 < bo2)
+     | _ -> raise (EvalError "type error"))
+  | Str s1, Str s2 ->
+    (match b with
+     | Plus -> Str((String.sub s1 0 (String.length s1 - 1)) ^
+                   String.sub s2 1 (String.length s2 - 1))
+     | Equals -> Bool(s1 = s2)
+     | LessThan -> Bool(String.length s1 < String.length s2)
+     | _ -> raise (EvalError "type error"))
+  | Char c1, Char c2 ->
+    (match b with
+     | Equals -> Bool(c1 = c2)
+     | LessThan -> Bool(c1 < c2)
+     | _ -> raise (EvalError "type error"))
+  | _, _ -> raise (EvalError "type error") ;;
+
 let eval_s (exp : expr) (_env : Env.env) : Env.value =
   let rec eval_exp (sub_exp : expr) : expr =
     match sub_exp with
     | Var v -> raise (EvalError ("unbound value " ^ v))
-    | Num _ -> sub_exp
-    | Float _ -> sub_exp
-    | Char _ -> sub_exp
-    | Str _ -> sub_exp
-    | Unit -> sub_exp
-    | Bool _ -> sub_exp
+    | Num _
+    | Float _
+    | Char _
+    | Str _
+    | Unit
+    | Bool _
+    | Raise
+    | Unassigned -> common_abstr sub_exp
     | Unop (_u, ex) ->
-        (match eval_exp ex with
-         | Num i -> Num(~-i)
-         | Float f -> Float(~-.f)
-         | Bool b -> Bool(not b)
-         | _ -> raise (EvalError "type error"))
+        unop_abstr (eval_exp ex)
     | Binop (b, ex1, ex2) ->
-        (match (eval_exp ex1), (eval_exp ex2) with
-         | Num i1, Num i2 ->
-           (match b with
-           | Plus -> Num(i1 + i2)
-           | Minus -> Num(i1 - i2)
-           | Times -> Num(i1 * i2)
-           | Equals -> Bool(i1 = i2)
-           | LessThan -> Bool(i1 < i2)
-           | _ -> raise (EvalError "type error"))
-       | Float f1, Float f2 ->
-         (match b with
-          | Fplus -> Float(f1 +. f2)
-          | Fminus -> Float(f1 -. f2)
-          | Ftimes -> Float(f1 *. f2)
-          | Equals -> Bool(f1 = f2)
-          | LessThan -> Bool(f1 < f2)
-          | _ -> raise (EvalError "type error"))
-       | Bool bo1, Bool bo2 ->
-         (match b with
-          | Equals -> Bool(bo1 = bo2)
-          | LessThan -> Bool(bo1 < bo2)
-          | _ -> raise (EvalError "type error"))
-       | Str s1, Str s2 ->
-         (match b with
-          | Plus -> Str((String.sub s1 0 (String.length s1 - 1)) ^
-                        String.sub s2 1 (String.length s2 - 1))
-          | Equals -> Bool(s1 = s2)
-          | LessThan -> Bool(String.length s1 < String.length s2)
-          | _ -> raise (EvalError "type error"))
-       | Char c1, Char c2 ->
-         (match b with
-          | Equals -> Bool(c1 = c2)
-          | LessThan -> Bool(c1 < c2)
-          | _ -> raise (EvalError "type error"))
-       | _, _ -> raise (EvalError "type error"))
+        binop_abstr b (eval_exp ex1) (eval_exp ex2)
     | Conditional (b, ex2, ex3) ->
       (match eval_exp b with
        | Bool tf -> if tf then eval_exp ex2 else eval_exp ex3
@@ -172,8 +192,6 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
     | Letrec (v, ex1, ex2) ->
       let rec_exp = subst v (Letrec(v, ex1, Var v)) ex1 in
       eval_exp(subst v rec_exp ex2)
-    | Raise -> raise (EvalError "Error raised")
-    | Unassigned -> sub_exp
     | App (ex1, ex2) ->
       match eval_exp ex1 with
       | Fun (v, f_ex) -> eval_exp (subst v (eval_exp ex2) f_ex)
@@ -192,54 +210,18 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
       (match Env.lookup e v with
        | Val ex -> ex
        | _ -> raise (EvalError "type error"))
-    | Num _i, _e -> sub_exp
-    | Float _f, _e -> sub_exp
-    | Char _c, _e -> sub_exp
-    | Str _s, _e -> sub_exp
-    | Unit, _e -> sub_exp
-    | Bool _b, _e -> sub_exp
+    | Num _, _
+    | Float _, _
+    | Char _, _
+    | Str _, _
+    | Unit, _
+    | Bool _, _
+    | Raise, _
+    | Unassigned, _ -> common_abstr sub_exp
     | Unop (_u, ex), e ->
-      (match d_eval_exp ex e with
-       | Num i -> Num(~-i)
-       | Float f -> Float(~-.f)
-       | Bool b -> Bool(not b)
-       | _ -> raise (EvalError "type error"))
+        unop_abstr (d_eval_exp ex e)
     | Binop (b, ex1, ex2), e ->
-      (match (d_eval_exp ex1 e), (d_eval_exp ex2 e) with
-       | Num i1, Num i2 ->
-         (match b with
-         | Plus -> Num(i1 + i2)
-         | Minus -> Num(i1 - i2)
-         | Times -> Num(i1 * i2)
-         | Equals -> Bool(i1 = i2)
-         | LessThan -> Bool(i1 < i2)
-         | _ -> raise (EvalError "type error"))
-       | Float f1, Float f2 ->
-         (match b with
-          | Fplus -> Float(f1 +. f2)
-          | Fminus -> Float(f1 -. f2)
-          | Ftimes -> Float(f1 *. f2)
-          | Equals -> Bool(f1 = f2)
-          | LessThan -> Bool(f1 < f2)
-          | _ -> raise (EvalError "type error"))
-       | Bool bo1, Bool bo2 ->
-         (match b with
-          | Equals -> Bool(bo1 = bo2)
-          | LessThan -> Bool(bo1 < bo2)
-          | _ -> raise (EvalError "type error"))
-       | Str s1, Str s2 ->
-         (match b with
-          | Plus -> Str((String.sub s1 0 (String.length s1 - 1)) ^
-                        String.sub s2 1 (String.length s2 - 1))
-          | Equals -> Bool(s1 = s2)
-          | LessThan -> Bool(String.length s1 < String.length s2)
-          | _ -> raise (EvalError "type error"))
-       | Char c1, Char c2 ->
-         (match b with
-          | Equals -> Bool(c1 = c2)
-          | LessThan -> Bool(c1 < c2)
-          | _ -> raise (EvalError "type error"))
-       | _, _ -> raise (EvalError "type error"))
+      binop_abstr b (d_eval_exp ex1 e) (d_eval_exp ex2 e)
     | Conditional (b, ex2, ex3), e ->
       (match d_eval_exp b e with
        | Bool tf -> if tf then d_eval_exp ex2 e else d_eval_exp ex3 e
@@ -256,15 +238,13 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
       let let_def =
         d_eval_exp ex1 (Env.extend e v (ref (Env.Val Unassigned))) in
       d_eval_exp ex2 (Env.extend e v (ref (Env.Val let_def)))
-    | Raise, _e -> raise (EvalError "Error raised")
-    | Unassigned, _e -> raise (EvalError "Unassigned evaluated")
   in
   Env.Val (d_eval_exp exp env) ;;
 
 (* The LEXICALLY-SCOPED ENVIRONMENT MODEL evaluator -- optionally
    completed as (part of) your extension *)
 
-let rec eval_l (exp : expr) (env : Env.env) : Env.value =
+let eval_l (_exp : expr) (_env : Env.env) : Env.value =
   (* let get_val (vexp : Env.value) : expr =
     match vexp with
     | Val ex -> ex
@@ -346,4 +326,4 @@ let eval_e _ =
    above, not the evaluate function, so it doesn't matter how it's set
    when you submit your solution.) *)
 
-let evaluate = eval_s ;;
+let evaluate = eval_d ;;
