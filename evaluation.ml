@@ -116,18 +116,27 @@ let common_abstr (exp : expr) =
   | Float _
   | Char _
   | Str _
-  | Unit
-  | Bool _ -> exp
+  | Bool _
+  | Unit -> exp
   | Raise -> raise (EvalError "Error raised")
   | Unassigned -> raise (EvalError "Unassigned evaluated")
   | _ -> raise (EvalError "wrong abstraction") ;;
 
-let unop_abstr (exp : expr) =
-  (match exp with
-   | Num i -> Num(~-i)
-   | Float f -> Float(~-.f)
-   | Bool b -> Bool(not b)
-   | _ -> raise (EvalError "type error")) ;;
+let unop_abstr (u : unop) (exp : expr) =
+  match u with
+  | Negate ->
+      (match exp with
+       | Num i -> Num(~-i)
+       | Float f -> Float(~-.f)
+       | Bool b -> Bool(not b)
+       | _ -> raise (EvalError "cannot perform this operator on this type"))
+  | RoundtoInt ->
+      let rounder (a,b) =
+        if abs_float(a) < 0.5 then int_of_float b
+        else (if b > 0. then (int_of_float b) + 1 else (int_of_float b) - 1) in
+      (match exp with
+       | Float f -> Num(rounder (modf f))
+       | _ -> raise (EvalError "cannot perform this operator on this type")) ;;
 
 let binop_abstr (b : binop) (exp1 : expr) (exp2 : expr) =
   match exp1, exp2 with
@@ -138,7 +147,7 @@ let binop_abstr (b : binop) (exp1 : expr) (exp2 : expr) =
        | Times -> Num(i1 * i2)
        | Equals -> Bool(i1 = i2)
        | LessThan -> Bool(i1 < i2)
-       | _ -> raise (EvalError "type error"))
+       | _ -> raise (EvalError "cannot perform this operator on these types"))
   | Float f1, Float f2 ->
       (match b with
        | Fplus -> Float(f1 +. f2)
@@ -146,24 +155,26 @@ let binop_abstr (b : binop) (exp1 : expr) (exp2 : expr) =
        | Ftimes -> Float(f1 *. f2)
        | Equals -> Bool(f1 = f2)
        | LessThan -> Bool(f1 < f2)
-       | _ -> raise (EvalError "type error"))
-  | Bool bo1, Bool bo2 ->
+       | _ -> raise (EvalError "cannot perform this operator on these types"))
+  | Char c1, Char c2 ->
       (match b with
-       | Equals -> Bool(bo1 = bo2)
-       | LessThan -> Bool(bo1 < bo2)
-       | _ -> raise (EvalError "type error"))
+       | Equals -> Bool(c1 = c2)
+       | LessThan -> Bool(c1 < c2)
+       | _ -> raise (EvalError "cannot perform this operator on these types"))
   | Str s1, Str s2 ->
       (match b with
        | Plus -> Str(s1 ^ s2)
        | Equals -> Bool(s1 = s2)
        | LessThan -> Bool(String.length s1 < String.length s2)
-       | _ -> raise (EvalError "type error"))
-  | Char c1, Char c2 ->
+       | _ -> raise (EvalError "cannot perform this operator on these types"))
+  | Bool bo1, Bool bo2 ->
       (match b with
-       | Equals -> Bool(c1 = c2)
-       | LessThan -> Bool(c1 < c2)
-       | _ -> raise (EvalError "type error"))
-  | _, _ -> raise (EvalError "type error") ;;
+       | Equals -> Bool(bo1 = bo2)
+       | LessThan -> Bool(bo1 < bo2)
+       | Or -> Bool(bo1 || bo2)
+       | And -> Bool(bo1 && bo2)
+       | _ -> raise (EvalError "cannot perform this operator on these types"))
+  | _, _ -> raise (EvalError "cannot perform this operator on these types") ;;
 
 let eval_s (exp : expr) (_env : Env.env) : Env.value =
   let rec eval_exp (sub_exp : expr) : expr =
@@ -173,11 +184,11 @@ let eval_s (exp : expr) (_env : Env.env) : Env.value =
     | Float _
     | Char _
     | Str _
-    | Unit
     | Bool _
+    | Unit
     | Raise
     | Unassigned -> common_abstr sub_exp
-    | Unop (_, ex) -> unop_abstr (eval_exp ex)
+    | Unop (u, ex) -> unop_abstr u (eval_exp ex)
     | Binop (b, ex1, ex2) -> binop_abstr b (eval_exp ex1) (eval_exp ex2)
     | Conditional (b, ex2, ex3) ->
         (match eval_exp b with
@@ -210,18 +221,18 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
     | Float _, _
     | Char _, _
     | Str _, _
-    | Unit, _
     | Bool _, _
+    | Unit, _
     | Raise, _
     | Unassigned, _ -> common_abstr sub_exp
-    | Unop (_, ex), e -> unop_abstr (d_eval_exp ex e)
+    | Unop (u, ex), e -> unop_abstr u (d_eval_exp ex e)
     | Binop (b, ex1, ex2), e ->
         binop_abstr b (d_eval_exp ex1 e) (d_eval_exp ex2 e)
     | Conditional (b, ex2, ex3), e ->
         (match d_eval_exp b e with
          | Bool tf -> if tf then d_eval_exp ex2 e else d_eval_exp ex3 e
          | _ -> raise (EvalError "type error"))
-    | Fun _, _e -> sub_exp
+    | Fun _, _ -> sub_exp
     | App (ex1, ex2), e ->
         (match d_eval_exp ex1 e, d_eval_exp ex2 e with
          | Fun (v, f_ex), ex2_v2 ->
@@ -241,7 +252,8 @@ let eval_d (exp : expr) (env : Env.env) : Env.value =
 
 let eval_l (_exp : expr) (_env : Env.env) : Env.value =
   failwith "eval_l not implemented";;
-  (* let get_val (vexp : Env.value) : expr =
+  (* Failed lexical extension
+  let get_val (vexp : Env.value) : expr =
     match vexp with
     | Val ex -> ex
     | Closure (c, en) -> c in

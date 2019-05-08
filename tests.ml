@@ -24,12 +24,14 @@ let exp2str () =
   let n5 = Num(7) in
   let b1 = Bool(true) in
   let fun1 = Fun("f",Binop(Plus,Var("f"),Num(9))) in
-  let reclet = Letrec("f",Fun("x",Conditional(Binop(Equals,v1,Num(0)),Num(1),
-                      Binop(Times,v1,App(Var("f"),Binop(Minus,v1,Num(1)))))),
-                      App(Var("f"),n3)) in
-  let free_reclet = Letrec("f",Fun("x",Conditional(Binop(Equals,v1,Num(0)),Num(1),
-                           Binop(Times,v1,App(Var("f"),Binop(Minus,v1,Var("z")))))),
-                           App(Var("f"),Var("a"))) in
+  let reclet =
+    Letrec("f",Fun("x",Conditional(Binop(Equals,v1,Num(0)),Num(1),
+           Binop(Times,v1,App(Var("f"),Binop(Minus,v1,Num(1)))))),
+           App(Var("f"),n3)) in
+  let free_reclet =
+    Letrec("f",Fun("x",Conditional(Binop(Equals,v1,Num(0)),Num(1),
+           Binop(Times,v1,App(Var("f"),Binop(Minus,v1,Var("z")))))),
+           App(Var("f"),Var("a"))) in
 
   (* exp_to_abstract_string *)
   assert(exp_to_abstract_string v1 = "Var(x)");

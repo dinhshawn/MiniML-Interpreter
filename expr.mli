@@ -8,6 +8,7 @@
 (* Unary operators *)
 type unop =
   | Negate
+  | RoundtoInt
 ;;
 
 (* Binary operators *)
@@ -20,6 +21,8 @@ type binop =
   | Fplus
   | Fminus
   | Ftimes
+  | Or
+  | And
 ;;
 
 (* Variables *)
@@ -32,8 +35,8 @@ type expr =
   | Float of float                       (* decimals *)
   | Char of char                         (* characters *)
   | Str of string                        (* strings *)
-  | Unit                                 (* unit *)
   | Bool of bool                         (* booleans *)
+  | Unit                                 (* unit *)
   | Unop of unop * expr                  (* unary operators *)
   | Binop of binop * expr * expr         (* binary operators *)
   | Conditional of expr * expr * expr    (* if then else *)

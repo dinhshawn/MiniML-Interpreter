@@ -12,9 +12,11 @@
 %token OPEN CLOSE
 %token LET DOT IN REC
 %token NEG
+%token ROUNDTOINT
 %token PLUS MINUS FPLUS FMINUS
 %token TIMES FTIMES
 %token LESSTHAN EQUALS
+%token OR AND
 %token IF THEN ELSE
 %token FUNCTION
 %token RAISE
@@ -28,9 +30,10 @@
 
 %nonassoc LESSTHAN
 %nonassoc EQUALS
+%nonassoc OR AND
 %left PLUS MINUS FPLUS FMINUS
 %left TIMES FTIMES
-%left NEG
+%left NEG ROUNDTOINT
 
 %start input
 %type <Expr.expr> input
@@ -57,7 +60,10 @@ expnoapp: INT                   { Num $1 }
         | exp FTIMES exp        { Binop(Ftimes, $1, $3) }
         | exp EQUALS exp        { Binop(Equals, $1, $3) }
         | exp LESSTHAN exp      { Binop(LessThan, $1, $3) }
+        | exp OR exp            { Binop(Or, $1, $3) }
+        | exp AND exp           { Binop(And, $1, $3) }
         | NEG exp               { Unop(Negate, $2) }
+        | ROUNDTOINT exp        { Unop(RoundtoInt, $2) }
         | IF exp THEN exp ELSE exp      { Conditional($2, $4, $6) }
         | LET ID EQUALS exp IN exp      { Let($2, $4, $6) }
         | LET REC ID EQUALS exp IN exp  { Letrec($3, $5, $7) }

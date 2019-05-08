@@ -9,6 +9,7 @@
 
 type unop =
   | Negate
+  | RoundtoInt
 ;;
 
 type binop =
@@ -20,6 +21,8 @@ type binop =
   | Fplus
   | Fminus
   | Ftimes
+  | Or
+  | And
 ;;
 
 type varid = string ;;
@@ -30,8 +33,8 @@ type expr =
   | Float of float                       (* decimals *)
   | Char of char                         (* characters *)
   | Str of string                        (* strings *)
-  | Unit                                 (* unit *)
   | Bool of bool                         (* booleans *)
+  | Unit                                 (* unit *)
   | Unop of unop * expr                  (* unary operators *)
   | Binop of binop * expr * expr         (* binary operators *)
   | Conditional of expr * expr * expr    (* if then else *)
@@ -83,14 +86,14 @@ let rec free_vars (exp : expr) : varidset =
   | Letrec (v, ex1, ex2) ->
       SS.union (SS.remove v (free_vars ex2)) (SS.remove v (free_vars ex1))
   | App (ex1, ex2) -> SS.union (free_vars ex1) (free_vars ex2)
-  | Raise
-  | Unassigned
   | Num _
   | Float _
-  | Str _
   | Char _
+  | Str _
+  | Bool _
   | Unit
-  | Bool _ -> SS.empty
+  | Raise
+  | Unassigned -> SS.empty
 
 (* new_varname : unit -> varid
    Return a fresh variable, constructed with a running counter a la
@@ -146,14 +149,14 @@ let rec subst (var_name : varid) (repl : expr) (exp : expr) : expr =
                subst var_name repl (subst v (Var fresh) ex2))
       else Letrec(v, subst var_name repl ex1, subst var_name repl ex2)
   | App (ex1, ex2) -> App(subst var_name repl ex1, subst var_name repl ex2)
-  | Raise
-  | Unassigned
   | Num _
   | Float _
-  | Str _
   | Char _
+  | Str _
+  | Bool _
   | Unit
-  | Bool _ -> exp
+  | Raise
+  | Unassigned -> exp
 
 (*......................................................................
   String representations of expressions
@@ -165,10 +168,10 @@ let rec exp_to_concrete_string (exp : expr) : string =
   | Var v -> v
   | Num i -> string_of_int i
   | Float f -> string_of_float f
-  | Str s -> "\"" ^ s ^ "\""
   | Char c -> "'" ^ Char.escaped c ^ "'"
-  | Unit -> "()"
+  | Str s -> "\"" ^ s ^ "\""
   | Bool b -> string_of_bool b
+  | Unit -> "()"
   | Unop (_unop, ex) -> "Negate(" ^ exp_to_concrete_string ex ^ ")"
   | Binop (bin, ex1, ex2) ->
       exp_to_concrete_string ex1 ^
@@ -180,7 +183,9 @@ let rec exp_to_concrete_string (exp : expr) : string =
        | Fminus -> " -. "
        | Ftimes -> " *. "
        | Equals -> " = "
-       | LessThan -> " < ")
+       | LessThan -> " < "
+       | Or -> " || "
+       | And -> " && ")
       ^ exp_to_concrete_string ex2
   | Conditional (ex1, ex2, ex3) ->
       "if " ^ exp_to_concrete_string ex1 ^
@@ -204,11 +209,16 @@ let rec exp_to_abstract_string (exp : expr) : string =
   | Var v -> "Var(" ^ v ^ ")"
   | Num i -> "Num(" ^ string_of_int i ^ ")"
   | Float f -> "Float(" ^ string_of_float f ^ ")"
-  | Str s -> "Str(" ^ s ^ ")"
   | Char c -> "Char(" ^ Char.escaped c ^ ")"
-  | Unit -> "Unit"
+  | Str s -> "Str(" ^ s ^ ")"
   | Bool b -> "Bool(" ^ string_of_bool b ^ ")"
-  | Unop (_unop, ex) -> "Unop(Negate, " ^ exp_to_abstract_string ex ^ ")"
+  | Unit -> "Unit"
+  | Unop (u, ex) ->
+      "Unop(" ^
+      (match u with
+        | Negate -> "Negate, "
+        | RoundtoInt -> "RoundtoInt, ")
+      ^ exp_to_abstract_string ex ^ ")"
   | Binop (bin, ex1, ex2) ->
       "Binop(" ^
       (match bin with
@@ -219,7 +229,9 @@ let rec exp_to_abstract_string (exp : expr) : string =
        | Fminus -> "Fminus, "
        | Ftimes -> "Ftimes, "
        | Equals -> "Equals, "
-       | LessThan -> "LessThan, ")
+       | LessThan -> "LessThan, "
+       | Or -> "Or, "
+       | And -> "And, ")
       ^ exp_to_abstract_string ex1 ^ ", " ^ exp_to_abstract_string ex2 ^ ")"
   | Conditional (ex1, ex2, ex3) ->
       "Conditional(" ^
